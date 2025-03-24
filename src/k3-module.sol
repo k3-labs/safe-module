@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 contract Enum {
     enum Operation {
@@ -25,7 +25,7 @@ interface ISafe {
 
 contract K3Module {
     address public owner;
-    ISafe safe;
+    ISafe public immutable safe;
 
     constructor(address _safe) {
         owner = msg.sender;
@@ -42,16 +42,12 @@ contract K3Module {
         _;
     }
 
-    function safeAddress() external view returns (address) {
-        return address(safe);
-    }
-
     function setOwner(address _owner) external onlySafe() {
         owner = _owner;
     }
 
-    function execute(address to, uint256 value, bytes calldata data, Enum.Operation operation) external onlyOwner() {
+    function execute(address payable to, uint256 value, bytes calldata data, Enum.Operation operation) external onlyOwner() {
         require(to != address(safe), "K3Module: To can't be safe address");
-        safe.execTransactionFromModule(to, value, data, operation);
+        require(safe.execTransactionFromModule(to, value, data, operation), 'K3Module: Transaction Failed');
     }
 }

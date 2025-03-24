@@ -30,8 +30,8 @@ contract K3ModuleTest is Test {
        bytes memory data = abi.encodeWithSignature("transfer(address,uint256)", to, amount);
        console.logBytes(data);
        vm.prank(owner);
-       module.execute(address(erc20), 0, data, Enum.Operation.Call);
-       assertEq(erc20.balanceOf(address(0x1)), 10 ether);
+       module.execute(payable(address(erc20)), 0, data, Enum.Operation.Call);
+       assertEq(erc20.balanceOf(payable(address(0x1))), 10 ether);
 
 
     }
