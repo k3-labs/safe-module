@@ -22,32 +22,60 @@ interface ISafe {
     ) external returns (bool success);
 }
 
-
 contract K3Module {
     address public owner;
     ISafe public immutable safe;
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Executed(address indexed to, uint256 value, bytes data, Enum.Operation operation);
+
+    error NotOwner();
+    error NotSafe();
+    error InvalidAddress();
+
+    /// @notice Initializes the module with a Safe address.
+    /// @param _safe The address of the safe contract.
     constructor(address _safe) {
+        if (_safe == address(0)) revert InvalidAddress();
         owner = msg.sender;
         safe = ISafe(_safe);
+        emit OwnershipTransferred(address(0), owner);
     }
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "K3Module: Sender not owner");
+        if (msg.sender != owner) revert NotOwner();
         _;
     }
 
     modifier onlySafe() {
-        require(msg.sender == address(safe), "K3Module: Sender not safe");
+        if (msg.sender != address(safe)) revert NotSafe();
         _;
     }
 
-    function setOwner(address _owner) external onlySafe() {
+    /// @notice Allows the safe to update the owner.
+    /// @param _owner The new owner address.
+    function setOwner(address _owner) external onlySafe {
+        if (_owner == address(0)) revert InvalidAddress();
+        address previousOwner = owner;
         owner = _owner;
+        emit OwnershipTransferred(previousOwner, _owner);
     }
 
-    function execute(address payable to, uint256 value, bytes calldata data, Enum.Operation operation) external onlyOwner() {
-        require(to != address(safe), "K3Module: To can't be safe address");
-        require(safe.execTransactionFromModule(to, value, data, operation), 'K3Module: Transaction Failed');
+    /// @notice Executes a transaction from the safe.
+    /// @param to The destination address.
+    /// @param value The Ether value to send.
+    /// @param data The data payload for the transaction.
+    /// @param operation The operation type (Call or DelegateCall).
+    function execute(
+        address payable to,
+        uint256 value,
+        bytes calldata data,
+        Enum.Operation operation
+    ) external onlyOwner {
+        require(to != address(safe), "K3-Safe-Module: To can't be safe address");
+        require(to != address(this), "K3-Safe-Module: To can't be module address");
+        bool success = safe.execTransactionFromModule(to, value, data, operation);
+        require(success, "K3-Safe-Module: Transaction Failed");
+        emit Executed(to, value, data, operation);
     }
 }
